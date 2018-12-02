@@ -1,0 +1,17 @@
+[package]
+name = "recochan"
+version = "0.1.0"
+authors = ["Markus Ebner <info@ebner-markus.de>"]
+edition = "2018"
+
+[dependencies]
+csv = "1"
+mysql = "*"
+nalgebra = "0.16"
+rocket = "0.4.0-rc.1"
+rocket_contrib = {version="0.4.0-rc.1", default-features = false, features = ["json"]}
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+log = "0"
+simplelog = "0"
