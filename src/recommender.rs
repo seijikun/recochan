@@ -103,7 +103,7 @@ impl RecommendationEngineState {
 
 /// This is beautiful RecoChan. It's a latent factor analysis based
 /// recommendation engine. This is essentially the method that made
-/// 3rd place in the Netflix-Challenge in 2009.
+/// 3rd place in the Netflix-Challenge in 2006.
 pub struct RecommendationEngine {
     config: RecommendationEngineConf,
 
@@ -111,16 +111,14 @@ pub struct RecommendationEngine {
     state: RwLock<Option<RecommendationEngineState>>
 }
 impl RecommendationEngine {
-    pub fn new<T>(config: RecommendationEngineConf, rating_provider: T) -> Self
-                            where T: RatingDataProvider + Send + Sync + 'static {
+    pub fn new(config: RecommendationEngineConf, rating_provider: Box<dyn RatingDataProvider + Send + Sync>) -> Self {
         return Self {
-            config, rating_provider: Box::new(rating_provider),
+            config, rating_provider: rating_provider,
             state: RwLock::new(None)
         };
     }
 
-    pub fn new_default<T>(rating_provider: T) -> Self
-                            where T: RatingDataProvider + Send + Sync + 'static {
+    pub fn new_default(rating_provider: Box<dyn RatingDataProvider + Send + Sync>) -> Self {
         return Self::new(RecommendationEngineConf::default(), rating_provider);
     }
 
