@@ -8,15 +8,34 @@ At the moment, Reco-Chan can produce personal recommendations. In other words: Y
 
 # Configuring
 Reco-Chan is configurable. To be able to use it, you need to configure the dataprovider you want to use. (see below)
-You can also configure the Web-API that Reco-Chan exposes:
+Example configuration file:
 ```json
 {
-    "api": {
-        "bind": "127.0.0.1",
-        "port": 1337
-    }
+	"api": {
+		"bind": "0.0.0.0",
+		"port": 1337
+	},
+	"dataprovider": {
+		"type": "SQL",
+		"connection_string": "mysql://root:password@localhost:3307/mysql",
+		"aid_name": "animeid",
+		"uid_name": "userid",
+		"rating_name": "rating",
+		"table_name": "ratings"
+	},
+	"retrain_every_sec": 10
 }
 ```
+
+## Overview
+| Section           | Effect                                                                                           |
+|-------------------|--------------------------------------------------------------------------------------------------|
+| **api**           | Section that contains any configuration regarding Reco-Chan's API.                               |
+| .bind             | IP-Address that the webserver will bind to, to provide the API                                   |
+| .port             | Port that the webserver will bind to.                                                            |
+| **dataprovider**  |  This will contain the configuration for the dataprovider that should be used.                   |
+| ...               | (Have a look at the dataprovider section below)                                                  |
+| retrain_every_sec | Interval (in seconds) in which Reco-Chan should automatically retrain the used prediction model. |
 
 # Dataproviders
 ReckoChan has a generic interface called `RatingDataProvider`. At the moment, Reco comes with two implementations for this trait:
@@ -31,7 +50,7 @@ You can configure:
 
 #### Example configuration:
 ```json
-{
+[...]
 	"dataprovider": {
 		"type": "SQL",
 		"connection_string": "mysql://root:password@localhost:3307/mysql",
@@ -40,7 +59,7 @@ You can configure:
 		"rating_name": "rating",
 		"table_name": "ratings"
 	}
-}
+[...]
 ```
 
 ## TestDataCsvProvider
@@ -54,10 +73,10 @@ The content of such a file should be of the format:
 
 #### Example configuration:
 ```json
-{
+[...]
 	"dataprovider": {
 		"type": "TestCSV",
 		"path": "/tmp/recommendations/"
 	}
-}
+[...]
 ```
