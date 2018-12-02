@@ -16,6 +16,7 @@ mod settings;
 mod dataprovider;
 mod recommender;
 
+use std::thread;
 use std::sync::Arc;
 use rocket::{State, http::Status};
 use rocket_contrib::json::JsonValue;
@@ -61,7 +62,7 @@ fn main() {
     info!(target: "Reco-Chan", "I'm applying the configuration you gave me, but only because I got nothing else to do!");
 
     // Create recommendation engine using configured dataprovider
-    let recom_engine = RecommendationEngine::new_default(dataprovider);
+    let recom_engine = Arc::new(RecommendationEngine::new_default(dataprovider));
 
     print_hello();
     // Initialize logging
@@ -72,9 +73,19 @@ fn main() {
     info!(target: "Reco-Chan", "I'm not doing this for you though, I'm doing this because I want to! (,,Ծ‸Ծ,, )");
 
     // Train initial round before starting web-server
-    //recom_engine.retrain();
+    recom_engine.retrain();
 
     info!(target: "Reco-Chan", "Initial training has finished. If you ask me for recommendations now, I MAY tell you the answer. But only reluctantly! ヽ(*≧ω≦)ﾉ");
+
+    // Start thread that will do the periodical re-training
+    let (recom_engine_clone, retrain_every_sec) = (recom_engine.clone(), settings.retrain_every_sec);
+    info!(target: "Reco-Chan", "Maybe I will remember to retrain every {}sec. But I will probably forget.", retrain_every_sec);
+    thread::spawn(move || {
+        let recom_engine = &recom_engine_clone;
+        thread::sleep(std::time::Duration::from_secs(retrain_every_sec));
+        info!(target: "Reco-Chan", "Ugh, I can't believe I actually remembered that you asked me to retrain now.");
+        recom_engine.retrain();
+    });
 
     // Configure and startup Web-API
     let api_env = if cfg!(debug_assertions) { rocket::config::Environment::Development } else { rocket::config::Environment::Production };
@@ -85,7 +96,7 @@ fn main() {
                         .expect("Failed to configure Web-Service");
 
     rocket::custom(api_config)
-            .manage(Arc::new(recom_engine))
+            .manage(recom_engine)
             .mount("/", routes![personal_recommendation])
             .launch();
 }

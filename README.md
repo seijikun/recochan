@@ -35,10 +35,10 @@ You can configure:
 	"dataprovider": {
 		"type": "SQL",
 		"connection_string": "mysql://root:password@localhost:3307/mysql",
-        "aid_name": "animeid",
-        "uid_name": "userid",
-        "rating_name": "rating",
-        "table_name": "ratings"
+		"aid_name": "animeid",
+		"uid_name": "userid",
+		"rating_name": "rating",
+		"table_name": "ratings"
 	}
 }
 ```

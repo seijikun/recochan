@@ -26,7 +26,8 @@ pub enum RecoChanSettingsDataProvider {
 #[derive(Deserialize)]
 pub struct RecoChanSettings {
     pub api: RecoChanSettingsApi,
-    pub dataprovider: RecoChanSettingsDataProvider
+    pub dataprovider: RecoChanSettingsDataProvider,
+    pub retrain_every_sec: u64
 }
 
 
@@ -37,6 +38,7 @@ impl RecoChanSettings {
         // Add defaults
         settings.set_default("api.bind", "127.0.0.1").unwrap();
         settings.set_default("api.port", 1337).unwrap();
+        settings.set_default("retrain_every_sec", 24*60*60).unwrap();
 
         settings.merge(File::with_name(filename))?;
         return settings.try_into();
