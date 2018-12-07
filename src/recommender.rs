@@ -1,6 +1,7 @@
 use nalgebra as na;
+use kdtree::KdTree;
 use serde_derive::Serialize;
-use std::{fmt, sync::RwLock};
+use std::{fmt, sync::RwLock, iter::FromIterator};
 use crate::ratings::{Id, RatingValue, RatingContainer};
 use crate::dataprovider::RatingDataProvider;
 
@@ -8,21 +9,29 @@ pub enum PredictionError {
     Unknown,
     NotInitialized,
     UnknownUser,
+    UnknownAnime
 }
 impl fmt::Display for PredictionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             PredictionError::Unknown => write!(f, "An unknown error occured during prediction."),
             PredictionError::NotInitialized => write!(f, "RecommendationEngine needs to be initialized by calling retrain() first."),
-            PredictionError::UnknownUser => write!(f, "User not yet known.")
+            PredictionError::UnknownUser => write!(f, "Couldn't find a user with this id"),
+            PredictionError::UnknownAnime => write!(f, "Couldn't find an anime with this id")
         }
     }
 }
 
 
 #[derive(Serialize)]
-pub struct UserPrediction{ animeid: Id, rating: RatingValue }
-pub type UserPredictionResult = Vec<UserPrediction>;
+pub struct UserRatingPrediction{ animeid: Id, rating: RatingValue }
+pub type UserRatingPredictionResult = Vec<UserRatingPrediction>;
+#[derive(Serialize)]
+pub struct SimilarUser{ userid: Id, similarity: RatingValue }
+pub type SimilarUserResult = Vec<SimilarUser>;
+#[derive(Serialize)]
+pub struct SimilarAnime{ animeid: Id, similarity: RatingValue }
+pub type SimilarAnimeResult = Vec<SimilarAnime>;
 
 
 pub type PredictionSanitizerFn = Fn(RatingValue) -> RatingValue + Send + Sync;
@@ -72,19 +81,29 @@ impl Default for RecommendationEngineConf {
 /// make recommendations. After the engine is done re-training
 /// the state will be locked and swapped with the new one.
 struct RecommendationEngineState {
+    // General rating statistics
     global_rating_avg: RatingValue,
     global_avg_offset: RatingValue,
 
+    // Anime-specific rating statistics
     anime_rating_cnt: na::DVector<usize>,
     anime_rating_avg: na::DVector<RatingValue>,
 
+    // Anime-specific rating statistics
     user_rating_cnt: na::DVector<usize>,
     user_avg_offset: na::DVector<RatingValue>,
 
+    // Feature matrices that are calculated using the funkSVD.
+    // These are the matrices used to make a personalized prediction.
     anime_features: na::DMatrix<RatingValue>,
     user_features: na::DMatrix<RatingValue>,
 
-    //model statistics
+    // Spatial indices of the feature-vectors within the feature matrices
+    // above. These are used for finding similar user2user and anime2anime.
+    anime_feature_tree: KdTree<RatingValue, Id, Vec<RatingValue>>,
+    user_feature_tree: KdTree<RatingValue, Id, Vec<RatingValue>>,
+
+    // model statistics
     ratings: RatingContainer,
     approximation_error: RatingValue
 }
@@ -95,6 +114,7 @@ impl RecommendationEngineState {
             anime_rating_cnt: na::DVector::from_element(0,0), anime_rating_avg: na::DVector::from_element(0,0.0),
             user_rating_cnt: na::DVector::from_element(0,0), user_avg_offset: na::DVector::from_element(0,0.0),
             anime_features: na::DMatrix::from_element(0,0,0.0), user_features: na::DMatrix::from_element(0,0,0.0),
+            anime_feature_tree: KdTree::new(0), user_feature_tree: KdTree::new(0),
             approximation_error: 0.0, ratings
         };
     }
@@ -179,6 +199,21 @@ impl RecommendationEngine {
             }
         }
 
+        // Build KdTrees for anime/user features for a fast knn neighbor search.
+        info!(target: "RecommendationEngine", "Building spatial indices for anime- / user-features");
+        state.anime_feature_tree = KdTree::new_with_capacity(conf.features, state.anime_features.nrows());
+        for a in 0..state.anime_features.nrows() {
+            let point_vec = Vec::from_iter(state.anime_features.row(a).iter().map(|r| *r));
+            let animeid = state.ratings.row2anime(a).unwrap();
+            state.anime_feature_tree.add(point_vec, animeid).expect("Building spatial tree for anime features failed");
+        }
+        state.user_feature_tree = KdTree::new_with_capacity(conf.features, state.user_features.ncols());
+        for u in 0..state.user_features.ncols() {
+            let point_vec = Vec::from_iter(state.user_features.column(u).iter().map(|r| *r));
+            let userid = state.ratings.column2user(u).unwrap();
+            state.user_feature_tree.add(point_vec, userid).expect("Building spatial tree for user features failed");
+        }
+
         // Swap newly trained state with the state that is currently used for predictions
         // Unwrap is ok here. Can only fail if a writer panics - which will not happen.
         info!(target: "RecommendationEngine", "Finished training - swapping with active EngineState");
@@ -237,21 +272,63 @@ impl RecommendationEngine {
         return cb(state);
     }
 
-    pub fn predict_for_user(&self, userid: Id) -> Result<UserPredictionResult, PredictionError> {
-        return self.use_state(|state: &RecommendationEngineState| {
+    pub fn predict_user_ratings(&self, userid: Id) -> Result<UserRatingPredictionResult, PredictionError> {
+        return self.use_state(|state| {
             let useridx = state.ratings.user2column(userid).ok_or(PredictionError::UnknownUser)?;
 
             // Calculate predictions for every known anime for the given user
             let predictions = &state.anime_features * state.user_features.column(useridx)
                                     + &state.anime_rating_avg.add_scalar(state.user_avg_offset[useridx]);
 
-            let mut result: UserPredictionResult = state.ratings.animes.iter().enumerate()
-                                                .map(|(idx, a)| UserPrediction { animeid: a.id, rating: predictions[idx] })
+            let mut result: UserRatingPredictionResult = state.ratings.animes.iter().enumerate()
+                                                .map(|(idx, a)| UserRatingPrediction { animeid: a.id, rating: predictions[idx] })
                                                 .collect();
             // Sort predicated ratings (ascending)
             result.sort_by(|p0, p1| p1.rating.partial_cmp(&p0.rating).unwrap_or(std::cmp::Ordering::Greater));
 
             return Ok(result);
+        });
+    }
+
+    pub fn find_k_similar_users(&self, userid: Id, k: usize) -> Result<SimilarUserResult, PredictionError> {
+        return self.use_state(|state| {
+            let useridx = state.ratings.user2column(userid).ok_or(PredictionError::UnknownUser)?;
+            
+            // Get a many-dimensional point representing the user in question within the user-feature-space.
+            let user_point = Vec::from_iter(state.user_features.column(useridx).iter().map(|r| *r));
+            
+            // Use the spatial tree to search for users near ours in user-feature-space.
+            // We request one more because the search will also return our anime itself
+            let similar_users = state.user_feature_tree.nearest(&user_point, k + 1, &|u0, u1| {
+                u0.iter().zip(u1).map(|(u0v, u1v)| (u0v - u1v).powf(2.0)).sum::<RatingValue>()
+            }).map_err(|_| PredictionError::Unknown)?;
+
+            return Ok(similar_users.into_iter().filter_map(|(distance, &other_uid)|
+                if userid != other_uid {
+                    Some(SimilarUser{ userid: other_uid, similarity: 1.0 / distance })
+                } else { None }
+            ).collect());
+        });
+    }
+
+    pub fn find_k_similar_animes(&self, animeid: Id, k: usize) -> Result<SimilarAnimeResult, PredictionError> {
+        return self.use_state(|state| {
+            let animeidx = state.ratings.anime2row(animeid).ok_or(PredictionError::UnknownAnime)?;
+            
+            // Get a many-dimensional point representing the anime in question within the anime-feature-space.
+            let anime_point = Vec::from_iter(state.anime_features.row(animeidx).iter().map(|r| *r));
+            
+            // Use the spatial tree to search for users near ours in anime-feature-space.
+            // We request one more because the search will also return our anime itself
+            let similar_animes = state.anime_feature_tree.nearest(&anime_point, k + 1, &|a0, a1| {
+                a0.iter().zip(a1).map(|(a0v, a1v)| (a0v - a1v).powf(2.0)).sum::<RatingValue>()
+            }).map_err(|_| PredictionError::Unknown)?;
+
+            return Ok(similar_animes.into_iter().filter_map(|(distance, &other_aid)|
+                if animeid != other_aid {
+                    Some(SimilarAnime{ animeid: other_aid, similarity: 1.0 / distance })
+                } else { None }
+            ).collect());
         });
     }
 }

@@ -19,7 +19,7 @@ pub enum RecoChanSettingsDataProvider {
         rating_name: String,
         table_name: String
     },
-    CSVTest { path: String }
+    TestCSV { path: String }
 }
 
 

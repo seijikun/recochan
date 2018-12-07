@@ -3,13 +3,14 @@
 const VERSION_MAJOR: u32 = 0;
 const VERSION_MINOR: u32 = 1;
 
+extern crate kdtree;
 extern crate config;
 extern crate nalgebra;
 extern crate simplelog;
+extern crate serde_derive;
 #[macro_use] extern crate log;
 #[macro_use] extern crate rocket;
 #[macro_use] extern crate rocket_contrib;
-extern crate serde_derive;
 
 mod ratings;
 mod settings;
@@ -56,7 +57,7 @@ fn main() {
         RecoChanSettingsDataProvider::SQL { connection_string, aid_name, uid_name, rating_name, table_name } => {
             Box::new(SQLDataProvider::new(&connection_string, &aid_name, &uid_name, &rating_name, &table_name))
         }
-        RecoChanSettingsDataProvider::CSVTest { path } => Box::new(TestDataCsvProvider::new(&path))
+        RecoChanSettingsDataProvider::TestCSV { path } => Box::new(TestDataCsvProvider::new(&path))
     };
 
     info!(target: "Reco-Chan", "I'm applying the configuration you gave me, but only because I got nothing else to do!");
@@ -97,24 +98,68 @@ fn main() {
 
     rocket::custom(api_config)
             .manage(recom_engine)
-            .mount("/", routes![personal_recommendation])
+            .mount("/", routes![
+                endpoint_personal_recommendation,
+                endpoint_similar_users,
+                endpoint_similar_animes
+            ])
             .launch();
 }
 
 
-#[get("/personal/<userid>")]
-fn personal_recommendation(userid: u64, recom_engine: State<Arc<RecommendationEngine>>) -> Result<JsonValue, Status> {
-    match recom_engine.predict_for_user(userid) {
+#[get("/users/<userid>/recommend")]
+fn endpoint_personal_recommendation(userid: u64, recom_engine: State<Arc<RecommendationEngine>>) -> Result<JsonValue, Status> {
+    match recom_engine.predict_user_ratings(userid) {
         Ok(prediction) => {
             return Ok(json!(prediction));
         },
         Err(e) => {
             match e {
-                PredictionError::NotInitialized | PredictionError::Unknown => {
-                    return Err(Status::new(500, "Some weird mistake occured, sorry!"));
-                },
                 PredictionError::UnknownUser => {
                     return Err(Status::new(404, "I can not yet predict something for this user, sorry!"));
+                },
+                _ => {
+                    return Err(Status::new(500, "Some weird mistake occured, sorry!"));
+                }
+            }
+        }
+    }
+}
+
+#[get("/users/<userid>/similar?<count>")]
+fn endpoint_similar_users(userid: u64, count: Option<usize>, recom_engine: State<Arc<RecommendationEngine>>) -> Result<JsonValue, Status> {
+    match recom_engine.find_k_similar_users(userid, count.unwrap_or(5)) {
+        Ok(similar_users) => {
+            return Ok(json!(similar_users));
+        },
+        Err(e) => {
+            match e {
+                PredictionError::UnknownUser => {
+                    warn!(target: "Reco-Chan", "User unknown: {}", userid);
+                    return Err(Status::NotFound);
+                },
+                _ => {
+                    return Err(Status::raw(500));
+                }
+            }
+        }
+    }
+}
+
+#[get("/animes/<animeid>/similar?<count>")]
+fn endpoint_similar_animes(animeid: u64, count: Option<usize>, recom_engine: State<Arc<RecommendationEngine>>) -> Result<JsonValue, Status> {
+    match recom_engine.find_k_similar_animes(animeid, count.unwrap_or(5)) {
+        Ok(similar_animes) => {
+            return Ok(json!(similar_animes));
+        },
+        Err(e) => {
+            match e {
+                PredictionError::UnknownAnime => {
+                    warn!(target: "Reco-Chan", "Anime unknown: {}", animeid);
+                    return Err(Status::NotFound);
+                },
+                _ => {
+                    return Err(Status::raw(500));
                 }
             }
         }

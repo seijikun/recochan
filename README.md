@@ -1,10 +1,23 @@
 # recochan
 Reco-Chan is a recommendation engine based on the FunkSVD.
 This is the approach that Simon Funk used in the Netflix challenge 2006.
-As the name may suggest, it's original intention was to make recommendations for animes.
+This approach tries to extract the abstract notion of "*features*" from the given ratings. A feature could for example be *genre Action*.
+Each of those features is mapped to the rated items, as well as the users that rated them.
+Internally, the model works with **n** feature values per item, as well as per user.
+If the value of one feature for a given item is high, the item "contains" the feature. For example an anime is in the action genre.
+If the value of one feature for a given user is high, the user "likes" that feature. For example: The user likes action animes.
+
+Note, however, that the algorithm doesn't know about the concept of Genres or anything item-related. It extracts these relations by chance - which also means that it will not possible to specifiy what each feature exactly means.
+The more features Reco-Chan trains, the more concepts are supported. But when there are less actual features than Reco-Chan is trying to find, the engine will start to model the noise - which will result in bad predictions.
+
+As the name **Reco-Chan** may suggests, its original intention was to make recommendations for animes.
+For this reason, **Reco-Chan** has a [tsundere](https://en.wikipedia.org/wiki/Tsundere) personality, that it displays in the log messages.
 
 # Recommendations
-At the moment, Reco-Chan can produce personal recommendations. In other words: You tell Reco-Chan what user you would like to have anime recommendations for, and Reco-Chan will answer with a list of all animes and corresponding predicted rating (sorted descending by rating).
+Reco-Chan can produce the following:
+- Personal item recommendations for a given user ("You will probably want to watch **x** next..");
+- Find similar users to a given user (users that probably have the same taste)
+- Find similar animes to a given anime (animes that may be in the same genre, with the same setting)
 
 # Configuring
 Reco-Chan is configurable. To be able to use it, you need to configure the dataprovider you want to use. (see below)
