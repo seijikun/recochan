@@ -24,6 +24,8 @@ Reco-Chan is configurable.
 For this, Reco-Chan tries to find the file `recochan.json` within the current working folder (i.e. the folder that Reco-Chan is started from).
 When she does not find the file, she complains about the file missing and won't start.
 
+Reco-Chan does have a couple of default values for some configuration parameters. If you want to use the default value - you can simply not mention the configuration option in question in `recochan.json` at all. Internally, Reco-Chan merges the options provided within the file, with the internal default values.
+
 To be able to use Reco-Chan, you need to configure the dataprovider you want to use. (see below)
 Example configuration file:
 ```json
@@ -40,19 +42,23 @@ Example configuration file:
 		"rating_name": "rating",
 		"table_name": "ratings"
 	},
-	"retrain_every_sec": 10
+	"retrain_every_sec": 86400
 }
 ```
 
 ## Overview
-| Section           | Effect                                                                                           |
-|-------------------|--------------------------------------------------------------------------------------------------|
-| **api**           | Section that contains any configuration regarding Reco-Chan's API.                               |
-| .bind             | IP-Address that the webserver will bind to, to provide the API                                   |
-| .port             | Port that the webserver will bind to.                                                            |
-| **dataprovider**  |  This will contain the configuration for the dataprovider that should be used.                   |
-| ...               | (Have a look at the dataprovider section below)                                                  |
-| retrain_every_sec | Interval (in seconds) in which Reco-Chan should automatically retrain the used prediction model. |
+The following table tries to give an overview of all of the currently supported configuration values that Reco-Chan understands.
+It tries to display the hierarchy within the configuration file, and provides a small explanation for each option, as well as the current default value (if any).
+If you are fine with any of the given defaults, simply don't mention the option in the configuration file.
+
+| Section           | Effect                                                                                           | Default   |
+|-------------------|--------------------------------------------------------------------------------------------------|-----------|
+| **api**           | Section that contains any configuration regarding Reco-Chan's API.                               |     -     |
+| .bind             | IP-Address that the webserver will bind to, to provide the API                                   | 127.0.0.1 |
+| .port             | Port that the webserver will bind to.                                                            | 1337      |
+| **dataprovider**  | This will contain the configuration for the dataprovider that should be used.                    |     -     |
+| ...               | (Have a look at the dataprovider section below)                                                  |     -     |
+| retrain_every_sec | Interval (in seconds) in which Reco-Chan should automatically retrain the used prediction model. | 86400     |
 
 # Dataproviders
 ReckoChan has a generic interface called `RatingDataProvider`. At the moment, Reco comes with two implementations for this trait:
