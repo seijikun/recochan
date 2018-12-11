@@ -20,7 +20,11 @@ Reco-Chan can produce the following:
 - Find similar animes to a given anime (animes that may be in the same genre, with the same setting)
 
 # Configuring
-Reco-Chan is configurable. To be able to use it, you need to configure the dataprovider you want to use. (see below)
+Reco-Chan is configurable.
+For this, Reco-Chan tries to find the file `recochan.json` within the current working folder (i.e. the folder that Reco-Chan is started from).
+When she does not find the file, she complains about the file missing and won't start.
+
+To be able to use Reco-Chan, you need to configure the dataprovider you want to use. (see below)
 Example configuration file:
 ```json
 {
@@ -52,6 +56,7 @@ Example configuration file:
 
 # Dataproviders
 ReckoChan has a generic interface called `RatingDataProvider`. At the moment, Reco comes with two implementations for this trait:
+**Notice:** Only one dataprovider can be used at a time. The configuration file is meant to select one of the supported ones before starting Reco-Chan!
 
 ## SQLDataProvider
 SQLDataProvider is a configurable `RatingDataProvider` implementation that gets the user ratings from a SQL database.
