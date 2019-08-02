@@ -34,7 +34,7 @@ pub struct SimilarAnime{ animeid: Id, similarity: RatingValue }
 pub type SimilarAnimeResult = Vec<SimilarAnime>;
 
 
-pub type PredictionSanitizerFn = Fn(RatingValue) -> RatingValue + Send + Sync;
+pub type PredictionSanitizerFn = dyn Fn(RatingValue) -> RatingValue + Send + Sync;
 pub static PREDICTION_SANITIZER_NOOP: &PredictionSanitizerFn = &|rating_value: RatingValue| {
     return rating_value;
 };

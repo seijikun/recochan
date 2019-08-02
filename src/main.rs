@@ -21,7 +21,7 @@ use std::thread;
 use std::sync::Arc;
 use rocket::{State, http::Status};
 use rocket_contrib::json::JsonValue;
-use simplelog::{TermLogger, LevelFilter, Level};
+use simplelog::{TermLogger, TerminalMode, LevelFilter, Level};
 use self::dataprovider::*;
 use self::settings::RecoChanSettingsDataProvider;
 use self::recommender::{RecommendationEngine, PredictionError};
@@ -69,7 +69,7 @@ fn main() {
     // Initialize logging
     let mut log_config = simplelog::Config::default();
     log_config.target = Some(Level::Info);
-    TermLogger::init(LevelFilter::Trace, log_config).unwrap();
+    TermLogger::init(LevelFilter::Trace, log_config, TerminalMode::Mixed).unwrap();
     info!(target: "Reco-Chan", "Executing initial training round...");
     info!(target: "Reco-Chan", "I'm not doing this for you though, I'm doing this because I want to! (,,Ծ‸Ծ,, )");
 
