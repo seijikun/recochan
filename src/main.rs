@@ -26,6 +26,12 @@ use self::dataprovider::*;
 use self::settings::RecoChanSettingsDataProvider;
 use self::recommender::{RecommendationEngine, PredictionError};
 
+// Change log-level depending on build-type for now
+#[cfg(not(debug_assertions))]
+const LOGLEVEL: LevelFilter = LevelFilter::Info;
+#[cfg(debug_assertions)]
+const LOGLEVEL: LevelFilter = LevelFilter::Trace;
+
 fn print_hello() {
     let release_debug_flag = if cfg!(debug_assertions) { "d" } else { "r" };
 
@@ -69,7 +75,7 @@ fn main() {
     // Initialize logging
     let mut log_config = simplelog::Config::default();
     log_config.target = Some(Level::Info);
-    TermLogger::init(LevelFilter::Trace, log_config, TerminalMode::Mixed).unwrap();
+    TermLogger::init(LOGLEVEL, log_config, TerminalMode::Mixed).unwrap();
     info!(target: "Reco-Chan", "Executing initial training round...");
     info!(target: "Reco-Chan", "I'm not doing this for you though, I'm doing this because I want to! (,,Ծ‸Ծ,, )");
 
