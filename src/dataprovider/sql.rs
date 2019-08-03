@@ -36,7 +36,7 @@ impl RatingDataProvider for SQLDataProvider {
             Ok(result) => {
                 result.map(|row| row.unwrap()).for_each(|row| {
                     let (animeid, userid, rating) : (u64, u64, u64) = my::from_row(row);
-                    rating_builder.add_rating(animeid, userid, rating as RatingValue)
+                    rating_builder.add_rating(animeid, userid, rating as RatingValue / 2.0)
                 });
             },
             Err(err) => {
