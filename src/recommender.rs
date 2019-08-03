@@ -5,6 +5,7 @@ use std::{fmt, sync::RwLock, iter::FromIterator};
 use crate::ratings::{Id, RatingValue, RatingContainer};
 use crate::dataprovider::RatingDataProvider;
 
+#[derive(Debug)]
 pub enum PredictionError {
     Unknown,
     NotInitialized,
@@ -185,7 +186,7 @@ impl RecommendationEngine {
                 let error = Self::evaluate_model(&state, &residual_cache, f);
                 improvement = state.approximation_error - error;
                 state.approximation_error = error;
-                debug!(target: "RecommendationEngine", "Error: {}", state.approximation_error);
+                debug!(target: "RecommendationEngine", "Approximation-Error: {}", state.approximation_error);
 
                 i += 1;
             }
@@ -248,6 +249,8 @@ impl RecommendationEngine {
         for rating in ratings {
             anime_rating_cnt[rating.animeidx] += 1;
             anime_rating_avg[rating.animeidx] += rating.rating;
+            // FIXME: Is this correct?
+            // global_avg_offset should probably be the average of all offsets to the respective anime's average
             *global_avg_offset += rating.rating - *global_rating_avg;
         }
         *global_avg_offset /= ratings.len() as RatingValue;
@@ -332,5 +335,35 @@ impl RecommendationEngine {
                 } else { None }
             ).collect());
         });
+    }
+}
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dataprovider::UnitTestDataProvider;
+
+	#[test]
+    fn test_correctness() {
+        // https://www.youtube.com/watch?v=E8aMcwmqsTg
+        let test_data = vec![
+            (1, 1, 1.0), (1, 3, 3.0), (1, 6, 5.0), (1, 9, 5.0), (1, 11, 4.0), 
+            (2, 3, 5.0), (2, 4, 4.0), (2, 7, 4.0), (2, 10, 2.0), (2, 11, 1.0), (2, 12, 3.0), 
+            (3, 1, 2.0), (3, 2, 4.0), (3, 4, 1.0), (3, 5, 2.0), (3, 7, 3.0), (3, 9, 4.0), (3, 10, 3.0), (3, 11, 5.0), 
+            (4, 2, 2.0), (4, 3, 4.0), (4, 5, 5.0), (4, 8, 4.0), (4, 11, 2.0), 
+            (5, 3, 4.0), (5, 4, 3.0), (5, 5, 4.0), (5, 6, 2.0), (5, 11, 2.0), (5, 12, 5.0), 
+            (6, 1, 1.0), (6, 3, 3.0), (6, 5, 3.0), (6, 8, 2.0), (6, 11, 4.0)
+        ];
+        let testdata_provider = Box::new(UnitTestDataProvider::new(test_data));
+
+        let recom_engine = RecommendationEngine::new_default(testdata_provider);
+        recom_engine.retrain();
+        let approx_error = recom_engine.use_state(|state| {
+            Ok(state.approximation_error)
+        }).unwrap();
+        println!("{}", approx_error);
     }
 }
