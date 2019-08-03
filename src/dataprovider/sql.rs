@@ -1,4 +1,4 @@
-use crate::ratings::{RatingContainer, RatingContainerBuilder};
+use crate::ratings::{RatingContainer, RatingContainerBuilder, RatingValue};
 use super::RatingDataProvider;
 
 use mysql as my;
@@ -20,15 +20,25 @@ impl RatingDataProvider for SQLDataProvider {
     fn get(&self) -> RatingContainer {
         let mut rating_builder = RatingContainerBuilder::new();
 
-        let pool = my::Pool::new(&self.connection_string).unwrap();
+        let pool = match my::Pool::new(&self.connection_string) {
+            Ok(pool) => pool,
+            Err(err) => {
+                error!(target: "SQLDataProvider", "Error while trying to connect:\n{:?}", err);
+                panic!();
+            }
+        };
+        
         match pool.prep_exec(&self.query, ()) {
             Ok(result) => {
                 result.map(|row| row.unwrap()).for_each(|row| {
-                    let (animeid, userid, rating) = my::from_row(row);
-                    rating_builder.add_rating(animeid, userid, rating)
+                    let (animeid, userid, rating) : (u64, u64, u64) = my::from_row(row);
+                    rating_builder.add_rating(animeid, userid, rating as RatingValue)
                 });
             },
-            Err(e) => { panic!(e); }
+            Err(err) => {
+                error!(target: "SQLDataProvider", "Error while trying fetch data:\n{:?}", err);
+                panic!();
+            }
         }
 
         return rating_builder.build();

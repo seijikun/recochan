@@ -36,7 +36,7 @@ Example configuration file:
 	},
 	"dataprovider": {
 		"type": "SQL",
-		"connection_string": "mysql://root:password@localhost:3307/mysql",
+		"connection_string": "mysql://root:password@localhost:3307/database_name",
 		"aid_name": "animeid",
 		"uid_name": "userid",
 		"rating_name": "rating",
@@ -77,7 +77,7 @@ You can configure:
 [...]
 	"dataprovider": {
 		"type": "SQL",
-		"connection_string": "mysql://root:password@localhost:3307/mysql",
+		"connection_string": "mysql://root:password@localhost:3307/database_name",
 		"aid_name": "animeid",
 		"uid_name": "userid",
 		"rating_name": "rating",
