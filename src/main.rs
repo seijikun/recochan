@@ -54,8 +54,8 @@ fn main() {
 
     // Instantiate configured dataprovider
     let dataprovider: Box<dyn RatingDataProvider + Send + Sync> = match settings.dataprovider {
-        RecoChanSettingsDataProvider::SQL { connection_string, aid_name, uid_name, rating_name, table_name } => {
-            Box::new(SQLDataProvider::new(&connection_string, &aid_name, &uid_name, &rating_name, &table_name))
+        RecoChanSettingsDataProvider::SQL { connection_string, where_clause, aid_name, uid_name, rating_name, table_name } => {
+            Box::new(SQLDataProvider::new(&connection_string, &where_clause, &aid_name, &uid_name, &rating_name, &table_name))
         }
         RecoChanSettingsDataProvider::TestCSV { path } => Box::new(TestDataCsvProvider::new(&path))
     };

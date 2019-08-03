@@ -14,6 +14,7 @@ pub struct RecoChanSettingsApi {
 pub enum RecoChanSettingsDataProvider {
     SQL {
         connection_string: String,
+        where_clause: String,
         aid_name: String,
         uid_name: String,
         rating_name: String,

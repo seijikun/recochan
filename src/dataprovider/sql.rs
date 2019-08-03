@@ -8,10 +8,14 @@ pub struct SQLDataProvider {
     query: String
 }
 impl SQLDataProvider {
-    pub fn new(connection_string: &str, aid_name: &str, uid_name: &str, rating_name: &str, table_name: &str) -> Self {
+    pub fn new(connection_string: &str, where_clause: &str, aid_name: &str, uid_name: &str, rating_name: &str, table_name: &str) -> Self {
+        let where_clause_str = match where_clause.len() {
+            0 => "".to_owned(),
+            _ => format!("WHERE {}", where_clause)
+        };
         return Self {
             connection_string: connection_string.to_owned(),
-            query: format!("SELECT {}, {}, {} FROM {}", aid_name, uid_name, rating_name, table_name)
+            query: format!("SELECT {}, {}, {} FROM {} {}", aid_name, uid_name, rating_name, table_name, where_clause_str)
         };
     }
 }

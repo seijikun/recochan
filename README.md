@@ -37,6 +37,7 @@ Example configuration file:
 	"dataprovider": {
 		"type": "SQL",
 		"connection_string": "mysql://root:password@localhost:3307/database_name",
+		"where_clause": "",
 		"aid_name": "animeid",
 		"uid_name": "userid",
 		"rating_name": "rating",
@@ -71,6 +72,7 @@ You can configure:
 - Name of the `userid` column
 - Name of the `rating` column
 - Name of the `table`
+- An (optional) `WHERE` clause, that will filter ratings before importing them (`WHERE` is automatically prepended, when the option string is not empty)
 
 #### Example configuration:
 ```json
@@ -78,6 +80,7 @@ You can configure:
 	"dataprovider": {
 		"type": "SQL",
 		"connection_string": "mysql://root:password@localhost:3307/database_name",
+		"where_clause": "",
 		"aid_name": "animeid",
 		"uid_name": "userid",
 		"rating_name": "rating",
