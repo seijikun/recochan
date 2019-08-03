@@ -166,7 +166,7 @@ impl RecommendationEngine {
 
             state.approximation_error = Self::evaluate_model(&state, &residual_cache, f);
             debug!(target: "RecommendationEngine", "Training feature {}...", f);
-            debug!(target: "RecommendationEngine", "Error: {}", state.approximation_error);
+            debug!(target: "RecommendationEngine", "Approximation-Error: {}", state.approximation_error);
 
             let mut i = 0;
             while i < conf.min_steps || (i < conf.max_steps && improvement > conf.min_improvement) {
