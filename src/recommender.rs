@@ -244,16 +244,13 @@ impl RecommendationEngine {
         *user_avg_offset = na::DVector::from_element(users.len(), 0.0);
 
         // Calculate global rating average
-        *global_rating_avg = ratings.iter().map(|r| r.rating).sum::<RatingValue>() / ratings.len() as RatingValue;
         // Calculate average rating per anime
         for rating in ratings {
             anime_rating_cnt[rating.animeidx] += 1;
             anime_rating_avg[rating.animeidx] += rating.rating;
-            // FIXME: Is this correct?
-            // global_avg_offset should probably be the average of all offsets to the respective anime's average
-            *global_avg_offset += rating.rating - *global_rating_avg;
+            *global_rating_avg += rating.rating;
         }
-        *global_avg_offset /= ratings.len() as RatingValue;
+        *global_rating_avg /= ratings.len() as RatingValue;
         for idx in 0..animes.len() {
             anime_rating_avg[idx] = (*global_rating_avg * k + anime_rating_avg[idx]) / (k + anime_rating_cnt[idx] as RatingValue);
         }
@@ -262,7 +259,9 @@ impl RecommendationEngine {
         for rating in ratings {
             user_rating_cnt[rating.useridx] += 1;
             user_avg_offset[rating.useridx] += rating.rating - anime_rating_avg[rating.animeidx];
+            *global_avg_offset += rating.rating - anime_rating_avg[rating.animeidx];
         }
+        *global_avg_offset /= ratings.len() as RatingValue;
         for idx in 0..users.len() {
             user_avg_offset[idx] = (*global_avg_offset * k + user_avg_offset[idx]) / (k + user_rating_cnt[idx] as RatingValue);
         }
@@ -285,7 +284,10 @@ impl RecommendationEngine {
                                     + &state.anime_rating_avg.add_scalar(state.user_avg_offset[useridx]);
 
             let mut result: UserRatingPredictionResult = state.ratings.animes.iter().enumerate()
-                                                .map(|(idx, a)| UserRatingPrediction { animeid: a.id, rating: predictions[idx] })
+                                                .map(|(idx, a)| UserRatingPrediction {
+                                                    animeid: a.id,
+                                                    rating: (self.config.prediction_sanitizer)(predictions[idx])
+                                                })
                                                 .filter(filter)
                                                 .collect();
             // Sort predicated ratings (ascending)
@@ -345,6 +347,7 @@ impl RecommendationEngine {
 mod tests {
     use super::*;
     use crate::dataprovider::UnitTestDataProvider;
+    use csv;
 
 	#[test]
     fn test_correctness() {
@@ -365,5 +368,31 @@ mod tests {
             Ok(state.approximation_error)
         }).unwrap();
         println!("{}", approx_error);
+    }
+
+	#[test]
+    fn test_movielens_dataset() {
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .delimiter(b':')
+            .from_path("data/ratings.dat")
+            .unwrap();
+        let mut rating_data: Vec<(Id, Id, RatingValue)> = Vec::new();
+        for rating in rdr.records() {
+            let rating = rating.unwrap();
+            let userid = rating.get(0).unwrap().parse::<Id>().unwrap();
+            let animeid = rating.get(1).unwrap().parse::<Id>().unwrap();
+            // Move rating value into the range 0 to 5
+            let rating = rating.get(2).unwrap().parse::<RatingValue>().unwrap();
+            rating_data.push((animeid, userid, rating));
+        }
+        let testdata_provider = Box::new(UnitTestDataProvider::new(rating_data));
+
+        let recom_engine = RecommendationEngine::new_default(testdata_provider);
+        recom_engine.retrain();
+        let approx_error = recom_engine.use_state(|state| {
+            Ok(state.approximation_error)
+        }).unwrap();
+        assert_eq!(approx_error, 5.0);
     }
 }
