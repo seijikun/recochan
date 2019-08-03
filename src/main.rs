@@ -22,9 +22,12 @@ use std::sync::Arc;
 use rocket::{State, http::Status};
 use rocket_contrib::json::JsonValue;
 use simplelog::{TermLogger, TerminalMode, LevelFilter, Level};
-use self::dataprovider::*;
-use self::settings::RecoChanSettingsDataProvider;
-use self::recommender::{RecommendationEngine, PredictionError};
+use crate::{
+    ratings::RatingValue,
+    dataprovider::*,
+    settings::RecoChanSettingsDataProvider,
+    recommender::{RecommendationEngine, PredictionError}
+};
 
 // Change log-level depending on build-type for now
 #[cfg(not(debug_assertions))]
@@ -113,9 +116,10 @@ fn main() {
 }
 
 
-#[get("/users/<userid>/recommend")]
-fn endpoint_personal_recommendation(userid: u64, recom_engine: State<Arc<RecommendationEngine>>) -> Result<JsonValue, Status> {
-    match recom_engine.predict_user_ratings(userid) {
+#[get("/users/<userid>/recommend?<minrating>")]
+fn endpoint_personal_recommendation(userid: u64, recom_engine: State<Arc<RecommendationEngine>>, minrating: Option<RatingValue>) -> Result<JsonValue, Status> {
+    let effective_min_rating = minrating.unwrap_or(-1.0);
+    match recom_engine.predict_user_ratings(userid, |p| p.rating >= effective_min_rating) {
         Ok(prediction) => {
             return Ok(json!(prediction));
         },

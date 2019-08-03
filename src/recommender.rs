@@ -24,13 +24,13 @@ impl fmt::Display for PredictionError {
 
 
 #[derive(Serialize)]
-pub struct UserRatingPrediction{ animeid: Id, rating: RatingValue }
+pub struct UserRatingPrediction{ pub animeid: Id, pub rating: RatingValue }
 pub type UserRatingPredictionResult = Vec<UserRatingPrediction>;
 #[derive(Serialize)]
-pub struct SimilarUser{ userid: Id, similarity: RatingValue }
+pub struct SimilarUser{ pub userid: Id, pub similarity: RatingValue }
 pub type SimilarUserResult = Vec<SimilarUser>;
 #[derive(Serialize)]
-pub struct SimilarAnime{ animeid: Id, similarity: RatingValue }
+pub struct SimilarAnime{ pub animeid: Id, pub similarity: RatingValue }
 pub type SimilarAnimeResult = Vec<SimilarAnime>;
 
 
@@ -272,7 +272,8 @@ impl RecommendationEngine {
         return cb(state);
     }
 
-    pub fn predict_user_ratings(&self, userid: Id) -> Result<UserRatingPredictionResult, PredictionError> {
+    pub fn predict_user_ratings<P>(&self, userid: Id, filter: P) -> Result<UserRatingPredictionResult, PredictionError> 
+                where P: FnMut(&UserRatingPrediction) -> bool {
         return self.use_state(|state| {
             let useridx = state.ratings.user2column(userid).ok_or(PredictionError::UnknownUser)?;
 
@@ -282,6 +283,7 @@ impl RecommendationEngine {
 
             let mut result: UserRatingPredictionResult = state.ratings.animes.iter().enumerate()
                                                 .map(|(idx, a)| UserRatingPrediction { animeid: a.id, rating: predictions[idx] })
+                                                .filter(filter)
                                                 .collect();
             // Sort predicated ratings (ascending)
             result.sort_by(|p0, p1| p1.rating.partial_cmp(&p0.rating).unwrap_or(std::cmp::Ordering::Greater));
