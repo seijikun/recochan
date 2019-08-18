@@ -63,12 +63,12 @@ pub struct RecommendationEngineConf {
 impl Default for RecommendationEngineConf {
     fn default() -> Self {
         return Self {
-            features: 15,
+            features: 25,
             learn_rate: 0.01,
             min_steps: 25,
             max_steps: 120,
             min_improvement: 0.00001,
-            regularization_parameter: 0.002,
+            regularization_parameter: 0.02,
             prediction_sanitizer: PREDICTION_SANITIZER_CLAMP,
             initial_approximation_value: 0.1,
             k: 25.0
@@ -337,62 +337,5 @@ impl RecommendationEngine {
                 } else { None }
             ).collect());
         });
-    }
-}
-
-
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::dataprovider::UnitTestDataProvider;
-    use csv;
-
-	#[test]
-    fn test_correctness() {
-        // https://www.youtube.com/watch?v=E8aMcwmqsTg
-        let test_data = vec![
-            (1, 1, 1.0), (1, 3, 3.0), (1, 6, 5.0), (1, 9, 5.0), (1, 11, 4.0), 
-            (2, 3, 5.0), (2, 4, 4.0), (2, 7, 4.0), (2, 10, 2.0), (2, 11, 1.0), (2, 12, 3.0), 
-            (3, 1, 2.0), (3, 2, 4.0), (3, 4, 1.0), (3, 5, 2.0), (3, 7, 3.0), (3, 9, 4.0), (3, 10, 3.0), (3, 11, 5.0), 
-            (4, 2, 2.0), (4, 3, 4.0), (4, 5, 5.0), (4, 8, 4.0), (4, 11, 2.0), 
-            (5, 3, 4.0), (5, 4, 3.0), (5, 5, 4.0), (5, 6, 2.0), (5, 11, 2.0), (5, 12, 5.0), 
-            (6, 1, 1.0), (6, 3, 3.0), (6, 5, 3.0), (6, 8, 2.0), (6, 11, 4.0)
-        ];
-        let testdata_provider = Box::new(UnitTestDataProvider::new(test_data));
-
-        let recom_engine = RecommendationEngine::new_default(testdata_provider);
-        recom_engine.retrain();
-        let approx_error = recom_engine.use_state(|state| {
-            Ok(state.approximation_error)
-        }).unwrap();
-        println!("{}", approx_error);
-    }
-
-	#[test]
-    fn test_movielens_dataset() {
-        let mut rdr = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .delimiter(b':')
-            .from_path("data/ratings.dat")
-            .unwrap();
-        let mut rating_data: Vec<(Id, Id, RatingValue)> = Vec::new();
-        for rating in rdr.records() {
-            let rating = rating.unwrap();
-            let userid = rating.get(0).unwrap().parse::<Id>().unwrap();
-            let animeid = rating.get(1).unwrap().parse::<Id>().unwrap();
-            // Move rating value into the range 0 to 5
-            let rating = rating.get(2).unwrap().parse::<RatingValue>().unwrap();
-            rating_data.push((animeid, userid, rating));
-        }
-        let testdata_provider = Box::new(UnitTestDataProvider::new(rating_data));
-
-        let recom_engine = RecommendationEngine::new_default(testdata_provider);
-        recom_engine.retrain();
-        let approx_error = recom_engine.use_state(|state| {
-            Ok(state.approximation_error)
-        }).unwrap();
-        assert_eq!(approx_error, 5.0);
     }
 }
